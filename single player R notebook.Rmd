@@ -1,0 +1,176 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+# import packages
+```{r setup, include=FALSE}
+# load required packages
+library(tidyverse)
+library (ggthemes)
+library(rstatix)
+library(ggpubr)
+library(emmeans)
+library(dplyr)
+library(ggplot2)
+library(tidyr)
+```
+
+#import data
+```{r}
+single_arch = read_csv("single_arch_data.csv")
+single_arch_cleaned=single_arch%>%
+filter(roundNumber!= "0")  
+#group_by(importId, playerId, goal) %>%
+#summarise(across(everything(), ~paste(unique(.), collapse = ", ")))
+
+
+final_moves = read_csv("final_moves.csv") %>%
+  select(importId, goal, goal_optimal)
+
+#single_arch_cleaned = single_arch_cleaned %>%
+  #left_join(final_moves)
+
+
+merged_df= left_join(single_arch_cleaned, final_moves, by = c("importId", "goal"))
+```
+
+#Work out the number of moves for fill/move/covertask
+```{r}
+
+fill= merged_df %>%
+  filter(startsWith(goal, "fill")) 
+total_moves_fill = fill %>%
+  count(playerId, importId, roundNumber, goal, goal_optimal, name = "total_moves")
+  #group_by (playerId, roundNumber) %>%
+  #count()
+   
+move= merged_df %>%
+  filter(startsWith(goal, "move")) 
+total_moves_move = move %>%
+  count(playerId, importId, roundNumber, goal, goal_optimal, name = "total_moves")
+  #group_by (playerId, roundNumber) %>%
+  #count()
+
+cover= merged_df %>%
+  filter(startsWith(goal, "cover")) 
+total_moves_cover = cover %>%
+  count(playerId, importId, roundNumber, goal, goal_optimal, name = "total_moves")
+  #group_by (playerId, roundNumber) %>%
+  #count()
+
+clear= merged_df %>%
+  filter(startsWith(goal, "clear")) 
+total_moves_clear = clear %>%
+  count(playerId, importId, roundNumber, goal, goal_optimal, name = "total_moves")
+  #group_by (playerId, roundNumber) %>%
+  #count()
+
+uncover=merged_df %>%
+  filter(startsWith(goal, "uncover")) 
+total_moves_uncover = uncover %>%
+  count(playerId, importId, roundNumber, goal, goal_optimal, name = "total_moves")
+  #group_by (playerId, roundNumber) %>%
+  #count()
+```
+
+
+#Histograms 
+```{r}
+#Fill
+fill_long<- gather(total_moves_fill, key = "Variable", value = "Value", total_moves, goal_optimal) 
+
+ggplot(fill_long, aes(x = Value, fill = Variable)) +
+  geom_bar(position = "identity", alpha = 0.7, color = "black") +
+  labs(title = "Total moves and goal optimal in Fill",
+       x = "Value",
+       y = "Frequency") +
+  scale_fill_manual(values = c("total_moves" = "yellow", "goal_optimal" = "blue")) 
+
+
+#Move
+move_long<- gather(total_moves_move, key = "Variable", value = "Value", total_moves, goal_optimal)
+ggplot(move_long, aes(x = Value, fill = Variable)) +
+  geom_bar(position = "identity", alpha = 0.7, color = "black") +
+  labs(title = "Total moves and goal optimal in Move",
+       x = "Value",
+       y = "Frequency") +
+  scale_fill_manual(values = c("total_moves" = "coral", "goal_optimal" = "cyan")) 
+
+
+#Cover
+cover_long<- gather(total_moves_cover, key = "Variable", value = "Value", total_moves, goal_optimal)
+ggplot(cover_long, aes(x = Value, fill = Variable)) +
+  geom_bar(position = "identity", alpha = 0.7, color = "black") +
+  labs(title = "Total moves and goal optimal in Cover",
+       x = "Value",
+       y = "Frequency") +
+  scale_fill_manual(values = c("total_moves" = "pink", "goal_optimal" = "purple")) 
+
+
+#Clear
+clear_long<- gather(total_moves_clear, key = "Variable", value = "Value", total_moves, goal_optimal)
+ggplot(clear_long, aes(x = Value, fill = Variable)) +
+  geom_bar(position = "identity", alpha = 0.7, color = "black") +
+  labs(title = "Total moves and goal optimal in Clear",
+       x = "Value",
+       y = "Frequency") +
+  scale_fill_manual(values = c("total_moves" = "red", "goal_optimal" = "black")) 
+
+
+#Uncover
+uncover_long<- gather(total_moves_uncover, key = "Variable", value = "Value", total_moves, goal_optimal)
+ggplot(uncover_long, aes(x = Value, fill = Variable)) +
+  geom_bar(position = "identity", alpha = 0.7, color = "black") +
+  labs(title = "Total moves and goal optimal in Uncover",
+       x = "Value",
+       y = "Frequency") +
+  scale_fill_manual(values = c("total_moves" = "gold", "goal_optimal" = "brown")) 
+
+```
+
+#Find playerIDs with toatl moves one sd away from the mean
+```{r}
+#Fill
+mean_total_moves_fill = mean(total_moves_fill$total_moves) 
+sd_fill = sd(total_moves_fill$total_moves) 
+twopointfive_sd_above_mean_fill= mean_total_moves_fill+2.5*sd_fill
+twopointfive_sd_below_mean_fill= mean_total_moves_fill-2.5*sd_fill
+outliers_fill=total_moves_fill %>%
+filter(total_moves>twopointfive_sd_above_mean_fill | total_moves<twopointfive_sd_below_mean_fill )
+
+#move
+mean_total_moves_move = mean(total_moves_move$total_moves) 
+sd_move = sd(total_moves_move$total_moves) 
+twopointfive_sd_above_mean_move= mean_total_moves_move+2.5*sd_move
+twopointfive_sd_below_mean_move= mean_total_moves_move-2.5*sd_move
+outliers_move=total_moves_move %>%
+filter(total_moves>twopointfive_sd_above_mean_move | total_moves<twopointfive_sd_below_mean_move )
+
+#cover
+mean_total_moves_cover = mean(total_moves_cover$total_moves) 
+sd_cover = sd(total_moves_cover$total_moves) 
+twopointfive_sd_above_mean_cover= mean_total_moves_cover+2.5*sd_cover
+twopointfive_sd_below_mean_cover= mean_total_moves_cover-2.5*sd_cover
+outliers_cover=total_moves_cover %>%
+filter(total_moves>twopointfive_sd_above_mean_cover | total_moves<twopointfive_sd_below_mean_cover )
+
+#uncover
+mean_total_moves_uncover = mean(total_moves_uncover$total_moves) 
+sd_uncover = sd(total_moves_uncover$total_moves) 
+twopointfive_sd_above_mean_uncover= mean_total_moves_uncover+2.5*sd_uncover
+twopointfive_sd_below_mean_uncover= mean_total_moves_uncover-2.5*sd_uncover
+outliers_uncover=total_moves_uncover %>%
+filter(total_moves>twopointfive_sd_above_mean_uncover | total_moves<twopointfive_sd_below_mean_uncover )
+
+#clear
+mean_total_moves_clear = mean(total_moves_clear$total_moves) 
+sd_clear = sd(total_moves_clear$total_moves) 
+twopointfive_sd_above_mean_clear= mean_total_moves_fill+2.5*sd_clear
+twopointfive_sd_below_mean_clear= mean_total_moves_fill-2.5*sd_clear
+outliers_clear=total_moves_clear %>%
+filter(total_moves>twopointfive_sd_above_mean_clear | total_moves<twopointfive_sd_below_mean_clear )
+```
+
+
+
+
