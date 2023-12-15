@@ -27,10 +27,6 @@ filter(roundNumber!= "0")
 final_moves = read_csv("final_moves.csv") %>%
   select(importId, goal, goal_optimal)
 
-#single_arch_cleaned = single_arch_cleaned %>%
-  #left_join(final_moves)
-
-
 merged_df= left_join(single_arch_cleaned, final_moves, by = c("importId", "goal"))
 ```
 
@@ -80,7 +76,7 @@ total_moves_uncover = uncover %>%
 fill_long<- gather(total_moves_fill, key = "Variable", value = "Value", total_moves, goal_optimal) 
 
 ggplot(fill_long, aes(x = Value, fill = Variable)) +
-  geom_bar(position = "identity", alpha = 0.7, color = "black") +
+  geom_density(position = "identity", alpha = 0.7, color = "black") +
   labs(title = "Total moves and goal optimal in Fill",
        x = "Value",
        y = "Frequency") +
@@ -90,7 +86,7 @@ ggplot(fill_long, aes(x = Value, fill = Variable)) +
 #Move
 move_long<- gather(total_moves_move, key = "Variable", value = "Value", total_moves, goal_optimal)
 ggplot(move_long, aes(x = Value, fill = Variable)) +
-  geom_bar(position = "identity", alpha = 0.7, color = "black") +
+  geom_density(position = "identity", alpha = 0.7, color = "black") +
   labs(title = "Total moves and goal optimal in Move",
        x = "Value",
        y = "Frequency") +
@@ -100,7 +96,7 @@ ggplot(move_long, aes(x = Value, fill = Variable)) +
 #Cover
 cover_long<- gather(total_moves_cover, key = "Variable", value = "Value", total_moves, goal_optimal)
 ggplot(cover_long, aes(x = Value, fill = Variable)) +
-  geom_bar(position = "identity", alpha = 0.7, color = "black") +
+  geom_density(position = "identity", alpha = 0.7, color = "black") +
   labs(title = "Total moves and goal optimal in Cover",
        x = "Value",
        y = "Frequency") +
@@ -110,7 +106,7 @@ ggplot(cover_long, aes(x = Value, fill = Variable)) +
 #Clear
 clear_long<- gather(total_moves_clear, key = "Variable", value = "Value", total_moves, goal_optimal)
 ggplot(clear_long, aes(x = Value, fill = Variable)) +
-  geom_bar(position = "identity", alpha = 0.7, color = "black") +
+  geom_density(position = "identity", alpha = 0.7, color = "black") +
   labs(title = "Total moves and goal optimal in Clear",
        x = "Value",
        y = "Frequency") +
@@ -120,7 +116,7 @@ ggplot(clear_long, aes(x = Value, fill = Variable)) +
 #Uncover
 uncover_long<- gather(total_moves_uncover, key = "Variable", value = "Value", total_moves, goal_optimal)
 ggplot(uncover_long, aes(x = Value, fill = Variable)) +
-  geom_bar(position = "identity", alpha = 0.7, color = "black") +
+  geom_density(position = "identity", alpha = 0.7, color = "black") +
   labs(title = "Total moves and goal optimal in Uncover",
        x = "Value",
        y = "Frequency") +
@@ -171,6 +167,73 @@ outliers_clear=total_moves_clear %>%
 filter(total_moves>twopointfive_sd_above_mean_clear | total_moves<twopointfive_sd_below_mean_clear )
 ```
 
+```{r}
+sona = read_csv("sonacom.csv")
+game_data=read_csv("gameData.csv")
+
+timestamp <- 1699560000000/ 1000 
+date_time <- as.POSIXct(timestamp, origin = "1970-01-01", tz = "UTC") 
+print(date_time)
+
+timestamp2 <- 1699800000000 / 1000
+date_time2 <- as.POSIXct(timestamp2, origin = "1970-01-01", tz = "UTC") 
+print(date_time2)
+
+game_data%>%
+  group_by(playerId) %>%
+  select (goal, playerId) %>% 
+  unique %>%
+  count(playerId)
+
+game_data%>%
+  group_by(importId) %>%
+  select (goal, importId) %>% 
+  unique %>%
+  count(importId)
+```
+
+
+```{r}
+#Create a table of importIDs, #partcipants, and playerIds
+number_of_participants=sona%>%
+  group_by(importID_attempt1) %>%
+  select (importID_attempt1, playerID) %>% 
+  unique %>%
+  count(importID_attempt1, name="No.participants")
+
+sona_importId=sona%>%
+  select (importID_attempt1, playerID) %>%
+  group_by(importID_attempt1) %>%
+  arrange(., importID_attempt1) 
+sona_importId=sona_importId%>%
+  na.omit(sona_importId)
+
+first_attempt_importID=sona_importId %>%
+  summarize(
+    No.participants = n(),
+    player1 = ifelse(n() >= 1, first(playerID), NA),
+    player2 = ifelse(n() >= 2, nth(playerID, 2), NA),
+    player3 = ifelse(n() >= 3, nth(playerID, 3), NA))
+  
+colnames(first_attempt_importID)[colnames(first_attempt_importID) == "importID_attempt1"] <- "importId"
+
+all_importIDs=final_moves %>%
+  select (importId) %>% 
+  unique() 
+  
+all_importIDs <- all_importIDs %>%
+  mutate(No.participants = if_else(importId %in% first_attempt_importID$importId, 1, 0)) 
+
+IDs_not_played=all_importIDs%>%
+filter(No.participants == 0)  
+
+merged_importID_table <- bind_rows(first_attempt_importID, IDs_not_played) %>%
+  group_by(importId, No.participants) 
+
+write.csv(merged_importID_table, file = "Table.csv") 
+         
+
+```
 
 
 
